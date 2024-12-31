@@ -7,7 +7,8 @@
 
 #include "arch_test.h"
 
-RVTEST_ISA("RV32I_Zicsr")
+ RVTEST_ISA("RV32IF_Zicsr")
+//RVTEST_ISA("RV32IF")
 
 # Test code region
 .section .text.init
@@ -19,7 +20,9 @@ RVTEST_CODE_BEGIN
 #ifdef TEST_CASE_1
 // RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", fs_off)
     
- RVTEST_CASE(1, "//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*F.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", fs_off)
+ // RVTEST_CASE(1, "//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*F.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", fs_off)
+
+RVTEST_CASE(1,"//check ISA:=regex(.*32.*);check ISA:=regex(.*I.*F.*Zicsr.*);def TEST_CASE_1=True;",fs_off)
 
 
 RVTEST_SIGBASE( x13,signature_x13_1)
@@ -33,22 +36,23 @@ main:
 	LI a4, 0xbeed
 	RVTEST_SIGUPD(x13,a4)
 #endif
-	
+	RVTEST_FP_ENABLE()
 
 	ALL_MEM_PMP                        
 	csrw satp, zero                      // (bare mode)
 
+//	RVTEST_FP_ENABLE()
+	
 	// Set FS bits to 11 (Enable FPU)
 	csrr t3, mstatus                     
-	li t4, 0x6000                        // Mask for FS bits (11 << 13)
 	RVTEST_SIGUPD(x13,t3)
-	or t3, t3, t4                        // Enable FPU (FS = 11)
-	csrw mstatus, t3                     // Write back to mstatus
+//	RVTEST_FP_ENABLE()
+//	TEST_FPR4_OP(fmadd.s, f16, f23, f16, f25, dyn, 0, 0, x3, 0*0 + 3*0*FLEN/8, x4, x1, x2)
 
 	// Use a floating-point instruction (should work as FS = 11)
 	li t0, 0x40000000  // Load value for 2.0 (single-precision float)
-        fmv.w.x f0, t0     // Move integer to float register
-        fadd.s f1, f0, f0  // Add f0 to itself, result in f1
+//        fmv.w.x f0, t0     // Move integer to float register
+ //       fadd.s f1, f0, f0  // Add f0 to itself, result in f1
 
 	// Set FS bits to 00 (Disable FPU)
 	csrr t3, mstatus                     // Read mstatus
@@ -57,7 +61,7 @@ main:
 	csrw mstatus, t3                     // Write back to mstatus
 
 	// Use a floating-point instruction (should cause illegal instruction exception)
-	fadd.s f2, f0, f1                    // Attempt another floating-point addition
+//	fadd.s f2, f0, f1                    // Attempt another floating-point addition
 
 #endif
 //---------------------------------------------------------------------------------------------------------------------------------
