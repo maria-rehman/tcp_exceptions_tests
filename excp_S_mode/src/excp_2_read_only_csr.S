@@ -40,13 +40,21 @@ main:
 	RVTEST_SIGUPD(x13,t3)
 	
 	RVTEST_GOTO_LOWER_MODE Smode
+	nop
+	
+	csrr t4,0xD00 // read value of supervisor read only register
+	nop
 	
 	// Try to write the supervisor mode  "read only CSR" then exception in the S mode will occur
-	csrr t4,0xD00 // read mstatus value
-	
 	li t1,1
 	csrw 0xDC0,t1      // this will give an illegal instruction as trying to write the read only register of supervisor mode
-	 
+	nop
+	nop
+	
+	LI a4,0xffff          // update the signature with ffff val because here we can not show the mcause value
+		              // as we arre in lower privilege mode (s mode) 
+	RVTEST_SIGUPD(x13,a4)
+	
 	// switching back to the M mode
 	RVTEST_GOTO_MMODE
 #endif
@@ -59,11 +67,6 @@ RVTEST_DATA_BEGIN
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
 
 RVTEST_DATA_END                
 .align 12
@@ -79,6 +82,11 @@ signature_x13_1:
 // trap signatures initialization
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
+    .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 

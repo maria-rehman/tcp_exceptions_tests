@@ -19,7 +19,7 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", ro_csr)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", m_ro_csr)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
@@ -40,10 +40,18 @@ main:
 	RVTEST_SIGUPD(x13,t3)
 	
 	// Try to write the machine mode  "read only CSR" then exception in the M mode 
-	csrr t4,mvendorid // read mstatus value
+	csrr t4,mvendorid // read mvendorid value
+	nop
 	
+	// Try to write the machine mode  "read only CSR" then exception in the M mode 
 	li t1,1234
 	csrw mvendorid,t1      // this will give an illegal instruction as trying to write the read only register
+	nop
+	
+	csrr a4,mcause
+	RVTEST_SIGUPD(x13,a4)
+	nop
+	
 	 
 
 #endif
@@ -55,12 +63,6 @@ RVTEST_DATA_BEGIN
 
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
-
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
 
 RVTEST_DATA_END                
 .align 12
@@ -76,6 +78,11 @@ signature_x13_1:
 // trap signatures initialization
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
+    .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 

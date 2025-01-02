@@ -1,3 +1,10 @@
+// In M- mode execute the ecall instruction,  MXLEN-1 bit of mcause will become zero and the the 
+// exception code will be 9 for the environment call from M mode, mepc register will get 
+// the address of the ecall instruction
+
+// If S mode is implemented then will be used
+
+
 #include "model_test.h"
 
 #include "arch_test.h"
@@ -12,49 +19,40 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS",ecall_smode)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS",s_ecall)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
 main:
-#ifdef rvtest_mtrap_routine					                				// Verification of existance of rvtest_mtrap_routine
+#ifdef rvtest_mtrap_routine					             // Verification of existance of rvtest_mtrap_routine
 	LI a4, 0xceed
 	RVTEST_SIGUPD(x13,a4)
 #endif
-#ifdef rvtest_strap_routine					                				// Verification of existance of rvtest_strap_routine
-	LI a4, 0xbeed
+
+#ifdef rvtest_strap_routine					             // Verification of existance of rvtest_mtrap_routine
+	LI a4, 0xabcd
 	RVTEST_SIGUPD(x13,a4)
 #endif
+
 	
 	ALL_MEM_PMP          		  // set the PMP permissions for the whole memory
 	csrw satp, zero  		  // write satp with all zeros (bare mode)
 
-	csrr t3, mstatus           // read mstatus value 
-	RVTEST_SIGUPD(x13,t3)
-
-	// go to supervisor mode we can do it by hardcoding or using directly a macro 
 	
-	// csrr t2,mstatus
-   	// li t1, ~(0x3 << 11)
-  	// and t2,t2,t1
-   
-   	// li t1,0x0800
-   	// or t2,t2,t1
-   
-   	// csrw mstatus, t2      
-   	// la t1,switch_to_supervisor     // switch to S mode
-   	// csrw mepc,t1
-   	// mret
-   
-        // switch_to_supervisor:
-
 
 	RVTEST_GOTO_LOWER_MODE Smode
-	// supervisor ecall
+	nop
+	// supervisor ecall  
 	ecall
-
-	// switching back to the M mode
-	RVTEST_GOTO_MMODE		                                        		// Switching back to M mode
+	nop
+	
+	RVTEST_GOTO_MMODE
+	nop
+	
+	csrr a4, mcause
+	RVTEST_SIGUPD(x13,a4)
+	nop
+			                 
 
 #endif
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -62,15 +60,8 @@ RVTEST_CODE_END
 RVMODEL_HALT
 RVTEST_DATA_BEGIN
 .align 22
+// ----------------------------------------------
 
-//---------------------------------------------------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------------------------------------------------
-
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
 
 RVTEST_DATA_END                
 .align 12
@@ -84,11 +75,13 @@ signature_x13_1:
     .fill 64*(XLEN/32),4,0xcafebeef
 
 // trap signatures initialization
-#ifdef rvtest_mtrap_routine
+
 mtrap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
-#endif
 
+strap_sigptr:
+    .fill 64*(XLEN/32),4,0xaaaabeef
+    
 sig_end_canary:
 CANARY;
 rvtest_sig_end:

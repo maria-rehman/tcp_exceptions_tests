@@ -1,6 +1,6 @@
 //
 // If we try to access the non existinfg CSR and the instruction is csrr a0, 
-// 0xC000 so it will cause the illegal instruction and will update the mcause 
+// 0xFFF so it will cause the illegal instruction and will update the mcause 
 // with the exception code 2, mepc will point to the address of the illegal 
 // instruction, mtval will contain the binary representation of illegal instruction
 //
@@ -19,7 +19,7 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", mstatus_tvm)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", excp_2_M_non_exstn_csr)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
@@ -38,7 +38,14 @@ main:
 
 	li t1,3
 	li t1,0xdead
-	csrw 0xFFF,t1
+	csrw 0xFFF, t1      // accessing non existing CSR will generate the illegal instruction exception
+	nop
+	
+	csrr a4,mcause     //it will read value 2 for mcause in a4
+	RVTEST_SIGUPD(x13, a4)
+	
+	csrr a4,mtval      // mtval will have the instruction that cause the illegal instruction
+	RVTEST_SIGUPD(x13, a4)
 	
 	nop
 
@@ -52,13 +59,6 @@ RVTEST_DATA_BEGIN
 
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
-
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
-
 RVTEST_DATA_END                
 .align 12
 RVMODEL_DATA_BEGIN
@@ -74,6 +74,11 @@ signature_x13_1:
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
+    .fill 64*(XLEN/32),4,0xaaaabeef
 #endif
 
 sig_end_canary:

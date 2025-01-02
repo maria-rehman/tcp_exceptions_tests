@@ -40,6 +40,13 @@ main:
 	li t1,3
 	LA(x17,rvtest_data)
 	lw x5,3(x17)
+	nop
+	
+	csrr t3, mcause           // read mcause value that will be 4 for load misaligned
+	RVTEST_SIGUPD(x13,t3)
+	
+	csrr a4, mtval
+	RVTEST_SIGUPD(x13, a4)
 	
 	
 	// switching back to the M mode
@@ -58,12 +65,6 @@ rvtest_data:
 .word 0xbabecafe
 .word 0xbabecafe
 
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
-
 RVTEST_DATA_END                
 .align 12
 RVMODEL_DATA_BEGIN
@@ -78,6 +79,11 @@ signature_x13_1:
 // trap signatures initialization
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
+    .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 

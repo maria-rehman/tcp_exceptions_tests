@@ -33,18 +33,21 @@ main:
  	ALL_MEM_PMP          		  // set the PMP permissions for the whole memory
 	csrw satp, zero  		  // write satp with all zeros (bare mode)
 
-	csrr t3, mstatus           // read mstatus value 
-	RVTEST_SIGUPD(x13,t3)
+	csrr a4, mstatus           // read mstatus value 
+	RVTEST_SIGUPD(x13,a4)
 
 	RVTEST_GOTO_LOWER_MODE Smode
-	
-	li t1,3
-	li t2,2
+	nop
 	
 	LA(x17,rvtest_data)
-	sw t1,0(x17)    // will not give any exception
-	sw t2,3(x17)    // will cause the exception
 	
+	sw t1,0(x17)    // will not give any exception no misalignement
+	sw t2,3(x17)    // will cause the exception as store address-misaligned
+	nop
+	nop
+	
+	LI a4, 0xffff              // update signature value with ffff
+	RVTEST_SIGUPD(x13,a4)
 	
 	// switching back to the M mode
 	RVTEST_GOTO_MMODE
@@ -62,12 +65,6 @@ rvtest_data:
 .word 0xbabecafe
 .word 0xbabecafe
 
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
-
 RVTEST_DATA_END                
 .align 12
 RVMODEL_DATA_BEGIN
@@ -83,6 +80,11 @@ signature_x13_1:
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
+     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 
 sig_end_canary:

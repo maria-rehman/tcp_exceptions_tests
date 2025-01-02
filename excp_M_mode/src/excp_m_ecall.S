@@ -19,32 +19,37 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", mstatus_tvm)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS",m_ecall)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
 main:
-#ifdef rvtest_mtrap_routine					                				// Verification of existance of rvtest_mtrap_routine
+#ifdef rvtest_mtrap_routine					             // Verification of existance of rvtest_mtrap_routine
 	LI a4, 0xceed
 	RVTEST_SIGUPD(x13,a4)
 #endif
-#ifdef rvtest_strap_routine					                				// Verification of existance of rvtest_strap_routine
-	LI a4, 0xbeed
-	RVTEST_SIGUPD(x13,a4)
-#endif
 
-	csrr t3, mstatus
+	
+	ALL_MEM_PMP          		  // set the PMP permissions for the whole memory
+	csrw satp, zero  		  // write satp with all zeros (bare mode)
+
+	csrr t3, mstatus                  // read mstatus value 
 	RVTEST_SIGUPD(x13,t3)
 
-// ------------------------------------------------------------------------------------------------------------
-// ecall in M mode
-// ------------------------------------------------------------------------------------------------------------
-
-	li t0,3			//initial value for t0 = 3, no use
-	// after ecall check that environment E call has been handled by machine mode handler through log file
-        ecall   //environment call from machine mode
+	// machine ecall  
+	ecall
 	nop
-
+	
+	RVTEST_GOTO_MMODE
+	nop
+	
+	csrr a4,mcause
+	RVTEST_SIGUPD(x13,a4)
+	
+	LI a4, 0xffff
+	RVTEST_SIGUPD(x13,a4)
+	
+			                
 
 #endif
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -52,15 +57,8 @@ RVTEST_CODE_END
 RVMODEL_HALT
 RVTEST_DATA_BEGIN
 .align 22
+// ----------------------------------------------
 
-//---------------------------------------------------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------------------------------------------------
-
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
 
 RVTEST_DATA_END                
 .align 12

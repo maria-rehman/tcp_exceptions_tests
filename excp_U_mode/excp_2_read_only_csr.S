@@ -18,7 +18,7 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", ro_csr)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", u_ro_csr)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
@@ -39,13 +39,21 @@ main:
 	RVTEST_SIGUPD(x13,t3)
 	
 	RVTEST_GOTO_LOWER_MODE Umode
-	ecall
-	// Try to write the supervisor mode  "read only CSR" then exception in the S mode will occur
-	csrr t4,hpmcounter3 // read mstatus value
+	nop
 	
+	// read u mode read only reg
+	csrr t4,hpmcounter3 
+	nop
+	
+	// Try to write the supervisor mode  "read only CSR" then exception in the S mode will occur
 	li t1,1
 	csrw hpmcounter3,t1      // this will give an illegal instruction as trying to write the read only register of supervisor mode
-	 
+	nop
+	nop
+	
+	LI a4, 0xffff
+	RVTEST_SIGUPD(x13,a4)
+	
 	// switching back to the M mode
 	RVTEST_GOTO_MMODE
 #endif
@@ -58,15 +66,10 @@ RVTEST_DATA_BEGIN
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
-
 RVTEST_DATA_END                
 .align 12
 RVMODEL_DATA_BEGIN
+
 rvtest_sig_begin:
 sig_begin_canary:
 CANARY;
@@ -78,6 +81,11 @@ signature_x13_1:
 // trap signatures initialization
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
+    .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 

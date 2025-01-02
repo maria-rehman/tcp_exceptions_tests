@@ -39,28 +39,38 @@ main:
 
 	ALL_MEM_PMP          		         // set the PMP permissions for the whole memory
 	csrw satp, zero  		         // write satp with all zeros (bare mode)
-
+	
 	LI (t4, MSTATUS_TVM)    
-	csrw mstatus, t4	// set mstatus with TVM bit
+	csrw mstatus, t4
+	
 	csrr t3, mstatus
 	RVTEST_SIGUPD(x13,t3)
 	
 	// Traps never transition from a more-privileged mode to a less-privileged mode.
 	// but if in M mode I delegate the illegal instructions to handle in S mode then
-	// it will handle in S mode illegal instructions in S mode
+	// it will handle illegal instructions in S mode that occured in S mode
+
+	LI a4, 1 << 2
+	csrw medeleg, a4
 	
-	// Bit 2 corresponds to illegal instruction
-	li t0, (1 << 2)
-	csrs medeleg, t0          // Set bit 2 in medeleg
+	csrr a4,medeleg
+	RVTEST_SIGUPD(x13, a4)      // will give sig value 4
 	
 	RVTEST_GOTO_LOWER_MODE Smode
+	nop
 	
 	// Now use the satp it will generate illegal exception 
 	li t1, 1																
 	csrw satp, t1  		                   // writing satp exceptions will occur here
 						   // will be handled in the S mode
-	csrr t3, satp
- 	RVTEST_SIGUPD(x13,t3)
+	nop
+	nop
+					   
+	csrr a4, scause           
+ 	RVTEST_SIGUPD(x13,a4) // will give sig value 2 
+ 	
+ 	csrr a4, stval
+ 	RVTEST_SIGUPD(x13,a4)  // the sig val (instruction that caused exception)
 	
 	nop
 	nop

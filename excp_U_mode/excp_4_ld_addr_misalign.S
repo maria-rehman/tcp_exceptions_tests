@@ -42,7 +42,12 @@ main:
 	li t1,3
 	LA(x17,rvtest_data)
 	lw x5,3(x17)
+	nop
+	nop
 	
+	
+	LI a4, 0xffff
+	RVTEST_SIGUPD(x13,a4)
 	
 	// switching back to the M mode
 	RVTEST_GOTO_MMODE

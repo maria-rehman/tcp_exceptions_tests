@@ -43,16 +43,17 @@ main:
 
 	LI (t4, MSTATUS_TVM)    
 	csrw mstatus, t4	// set mstatus with TVM bit
-	csrr t3, mstatus
-	RVTEST_SIGUPD(x13,t3)
+	
+	LI a4, 4
+	csrw medeleg, a4
+	
+	csrr a4,medeleg
+	RVTEST_SIGUPD(x13, a4)      // will give sig value 4
 	
 	// Traps never transition from a more-privileged mode to a less-privileged mode.
 	// but if in M mode I delegate the illegal instructions to handle in S mode then 
 	// illegal instructions in U mode will be handled by S-handler
 	// Bit 2 corresponds to illegal instruction
-	
-	li t0, (1 << 2)
-	csrs medeleg, t0          // Set bit 2 in medeleg
 	
 	RVTEST_GOTO_LOWER_MODE Umode
 	
@@ -60,9 +61,11 @@ main:
 	li t1, 1																
 	csrw satp, t1  		                   // accessing csr in u mode will cause illegal instruction 
 						   // will be handled in the S mode
-	csrr t3, satp
+	nop
+	nop
 	
- 	RVTEST_SIGUPD(x13,t3)
+	LI a4, 0xffff
+ 	RVTEST_SIGUPD(x13,a4)
 	
 	nop
 	nop

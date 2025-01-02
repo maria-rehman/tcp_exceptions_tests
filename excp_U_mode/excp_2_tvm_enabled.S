@@ -38,20 +38,28 @@ main:
 
 	LI (t4, MSTATUS_TVM)    
 	csrw mstatus, t4	// set mstatus with TVM bit
+	
 	csrr t3, mstatus
 	RVTEST_SIGUPD(x13,t3)
 	
 	RVTEST_GOTO_LOWER_MODE Umode
+	nop
 	// the satp register and the sfence.vma instruction are not accessible regardless 
 	// of the mstatus.TVM value.
 	
 	// Now use the satp and sfence.vma and it will generate illegal exception 
 	li t1, 1																
 	csrw satp, t1  		                   // writing satp exceptions will occur here
-	csrr t3, satp
+	nop
+	
+	LI a4, 0xffff
+	RVTEST_SIGUPD(x13,a4)       
 
 	sfence.vma      // using sfence.vma illegal exception will occur
 	nop
+	
+	LI a4, 0xffff
+	RVTEST_SIGUPD(x13,a4)  
 
 	RVTEST_GOTO_MMODE
 

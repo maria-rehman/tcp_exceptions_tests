@@ -34,18 +34,22 @@ main:
 
  	ALL_MEM_PMP          		  // set the PMP permissions for the whole memory
 	csrw satp, zero  		  // write satp with all zeros (bare mode)
-	csrr t3, mstatus           // read mstatus value 
-	RVTEST_SIGUPD(x13,t3)
+	
+	csrr a4, mstatus           // read mstatus value 
+	RVTEST_SIGUPD(x13,a4)
 	
 	RVTEST_GOTO_LOWER_MODE Umode
-	// Try to read user mode CSR no exception 
-	
-	li t0,1
-	csrw 0x0400,t0
 	// Try to read the machine mode or Supervisor mode CSR now will raise exception because the 
 	// lower privillege mode cannot access the higher privillege mode CSRs
 	li t0,1
 	csrw sstatus,t0           // try to write random value to sstatus  
+	nop 
+
+	// here we will update the signal with ffff because we are in U mode and we can not read the value of 
+	// mcause
+	
+	LI a4, 0xffff         
+	RVTEST_SIGUPD(x13,a4)
 	
 	// switching back to the M mode
 	RVTEST_GOTO_MMODE
@@ -59,11 +63,7 @@ RVTEST_DATA_BEGIN
 //---------------------------------------------------------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------------------------------------------------------
 
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
+
 
 RVTEST_DATA_END                
 .align 12
@@ -77,6 +77,12 @@ signature_x13_1:
     .fill 64*(XLEN/32),4,0xcafebeef
 
 // trap signatures initialization
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
+    .fill 64*(XLEN/32),4,0xbeefbeef
+#endif
+
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef

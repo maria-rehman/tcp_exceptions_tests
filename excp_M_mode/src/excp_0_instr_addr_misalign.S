@@ -29,28 +29,38 @@ main:
 	LI a4, 0xbeed
 	RVTEST_SIGUPD(x13,a4)
 #endif
-	
- 	ALL_MEM_PMP          		  // set the PMP permissions for the whole memory
-	csrw satp, zero  		  // write satp with all zeros (bare mode)
+    ALL_MEM_PMP                // Set PMP permissions for the entire memory
+    csrw satp, zero            // Write satp with all zeros (bare mode)
 
-	csrr t3, mstatus           // read mstatus value 
-	RVTEST_SIGUPD(x13,t3)
+	csrr a4, mstatus
+	RVTEST_SIGUPD(x13,a4)
 	
-	LA(x17,rvtest_data)
-	sw t1,0(x17)    // will not give any exception
-	sw t2,3(x17)    // will cause the exception
-	nop
-	nop
-	
-	csrr a4, mcause      // read mcause and it willl be 6 for the store adress misaligened exception
-	RVTEST_SIGUPD(x13, a4)
-	
-	csrr a4, mtval       // it will have misaligned address of the instruction
-	RVTEST_SIGUPD(x13, a4)
-	
-	
-	// switching back to the M mode
-	RVTEST_GOTO_MMODE
+ 	// Force misalignment dynamically
+	la t0, aligned_label       // Load the address of an aligned label
+	addi t0, t0, 2             // Add an offset to make it misaligned (e.g., 2 for halfword alignment)
+
+    	// indirect jump to misaligned address
+   	jalr x0, 0(t0)             // Should cause an instruction address misaligned exception
+   	nop
+   	
+   	csrr a4, mcause
+	RVTEST_SIGUPD(x13,a4)
+
+   	// Infinite loop in case exception is not raised
+    	j main
+            
+aligned_label:
+    	nop                        // Aligned instruction
+    	nop
+    	nop
+    
+   	csrr a4, mcause
+	RVTEST_SIGUPD(x13,a4)
+    	// Switching back to M mode
+    	
+    RVTEST_GOTO_MMODE
+    
+
 
 #endif
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -65,7 +75,8 @@ rvtest_data:
 .word 0xbabecafe
 .word 0xbabecafe
 
-RVTEST_DATA_END                
+RVTEST_DATA_END   
+             
 .align 12
 RVMODEL_DATA_BEGIN
 rvtest_sig_begin:
@@ -84,7 +95,7 @@ mtrap_sigptr:
 
 #ifdef rvtest_strap_routine
 strap_sigptr:
-    .fill 64*(XLEN/32),4,0xdeadbeef
+    .fill 64*(XLEN/32),4,0xcafebeef
 #endif
 
 sig_end_canary:

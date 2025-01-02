@@ -2,7 +2,7 @@
 // In this access to the csrs without appropriate privillage mode will cause the 
 // illegal instruction mcause will have the exception code 2 and for machine mode 
 // it will be only applicable when  it will try to access the debug mode registers only.
-//
+// and for other privillege registers like S an U mode registers access will not give illegal instruction
 
 #include "model_test.h"
 
@@ -18,7 +18,7 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", mstatus_tvm)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", excp_2_M_inappropriate_mode)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
@@ -35,22 +35,32 @@ main:
  	ALL_MEM_PMP          		  // set the PMP permissions for the whole memory
 	csrw satp, zero  		  // write satp with all zeros (bare mode)
 	
-	// Try to read the machine mode CSR no exception becaiuse the M is high privillege mode
 	csrr t3, mstatus           // read mstatus value 
 	RVTEST_SIGUPD(x13,t3)
 	
 	// Try to read the machine mode CSR no exception becaiuse the M is high privillege mode
-	csrr t3, mstatus           // read mstatus value 
+	csrr t3, mcause           // read mstatus value 
+	
+	LI a4, 0xffff            // just to indicate that no exception raised
+	RVTEST_SIGUPD(x13,a4)
 	
 	// Try to read the supervisor CSR then no exception because high privillege mode can access less privilege mode CSRs
 	csrr t4,sstatus
 	
+	LI a4, 0xffff            // just to indicate that no exception raised
+	RVTEST_SIGUPD(x13,a4)
+	
 	// Try to read the debug CSRs and then it will cause exception (illegal exception) 
 	
 	csrr t5,dcsr
+	nop
 	
-	// switching back to the M mode
-	RVTEST_GOTO_MMODE
+	csrr a4, mcause
+	RVTEST_SIGUPD(x13,a4)
+	
+	nop
+	nop
+	
 #endif
 //---------------------------------------------------------------------------------------------------------------------------------
 RVTEST_CODE_END

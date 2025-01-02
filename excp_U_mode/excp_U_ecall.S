@@ -16,7 +16,7 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS",ecall_smode)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS",u_ecall)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
@@ -36,29 +36,18 @@ main:
 	csrr t3, mstatus           // read mstatus value 
 	RVTEST_SIGUPD(x13,t3)
 
-	// go to supervisor mode we can do it by hardcoding or using directly a macro 
-	
-	// csrr t2,mstatus
-   	// li t1, ~(0x3 << 11)
-  	// and t2,t2,t1
-   
-   	// li t1,0
-   	// or t2,t2,t1
-   
-   	// csrw mstatus, t2      
-   	// la t1,switch_to_supervisor     // switch to S mode
-   	// csrw mepc,t1
-   	// mret
-   
-        // switch_to_supervisor:
-
-        // RVTEST_GOTO_LOWER_MODE Smode
+        // RVTEST_GOTO_LOWER_MODE Umode
 	RVTEST_GOTO_LOWER_MODE Umode
-	// supervisor ecall
+	nop
+	
 	ecall
-
-	// switching back to the M mode
+	nop
+	
 	RVTEST_GOTO_MMODE		                                        		// Switching back to M mode
+	csrr a4, mcause         // read mcause value 
+	RVTEST_SIGUPD(x13,a4)
+	
+	RVTEST_GOTO_MMODE
 
 #endif
 //---------------------------------------------------------------------------------------------------------------------------------
@@ -90,6 +79,11 @@ signature_x13_1:
 // trap signatures initialization
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
+    .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 

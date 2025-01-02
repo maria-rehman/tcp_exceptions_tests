@@ -18,7 +18,7 @@ RVMODEL_BOOT
 RVTEST_CODE_BEGIN
 
 #ifdef TEST_CASE_1
-    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", mstatus_tvm)
+    RVTEST_CASE(1,"//check ISA:=regex(.*32.*); check ISA:=regex(.*I.*Zicsr.*); def rvtest_mtrap_routine=True; def rvtest_strap_routine=True; def TEST_CASE_1=True; mac SV32_MACROS", s_mstatus_tvm_en)
 
 RVTEST_SIGBASE( x13,signature_x13_1)
 
@@ -38,6 +38,7 @@ main:
 
 	LI (t4, MSTATUS_TVM)    
 	csrw mstatus, t4	// set mstatus with TVM bit
+	
 	csrr t3, mstatus
 	RVTEST_SIGUPD(x13,t3)
 	
@@ -46,11 +47,23 @@ main:
 	// Now use the satp and sfence.vma and it will generate illegal exception 
 	li t1, 1																
 	csrw satp, t1  		                   // writing satp exceptions will occur here
+	nop
+	
 	csrr t3, satp
-// 	RVTEST_SIGUPD(x13,t3)
+ 	RVTEST_SIGUPD(x13,t3)
+ 	
+ 	LI a4, 0xffff            // update signature with random val
+	RVTEST_SIGUPD(x13,a4)
 
 	sfence.vma      // using sfence.vma illegal exception will occur
 	nop
+	
+	csrr t3, satp
+ 	RVTEST_SIGUPD(x13,t3)
+ 	
+ 	LI a4, 0xffff            // update signature with random val
+	RVTEST_SIGUPD(x13,a4)
+
 
 	RVTEST_GOTO_MMODE
 
@@ -64,13 +77,6 @@ RVTEST_DATA_BEGIN
 .align 22
 
 //---------------------------------------------------------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------------------------------------------------------
-
-#ifdef rvtest_strap_routine
-.align 12                       //complete the 4KB permission memory range
-rvtest_slvl1_pg_tbl:
-		RVTEST_PTE_IDENT_MAP(0,1,PTE_V | PTE_A | PTE_D | PTE_G)
-#endif
 
 RVTEST_DATA_END                
 .align 12
@@ -86,6 +92,11 @@ signature_x13_1:
 // trap signatures initialization
 #ifdef rvtest_mtrap_routine
 mtrap_sigptr:
+    .fill 64*(XLEN/32),4,0xdeadbeef
+#endif
+
+#ifdef rvtest_strap_routine
+strap_sigptr:
     .fill 64*(XLEN/32),4,0xdeadbeef
 #endif
 
